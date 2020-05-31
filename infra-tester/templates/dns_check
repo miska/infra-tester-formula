@@ -1,0 +1,94 @@
+#!/biin/sh
+FLAGS="+noall +answer"
+GL_ERRORS="0"
+GL_WARNINGS="0"
+
+err() {
+    echo "ERROR: $1"
+	ERRORS="`expr $ERRORS + 1`"
+	GL_ERRORS="`expr $GL_ERRORS + 1`"
+	ERR_DOM="echo -n "$ERR_DOM\n$DOM"
+}
+
+warn() {
+    echo "WARNING: $1"
+	WARNINGS="`expr $WARNINGS + 1`"
+	GL_WARNINGS="`expr $GL_WARNINGS + 1`"
+	WAR_DOM="echo -n "$WAR_DOM\n$DOM"
+}
+
+check() {
+	echo " * $1"
+}
+
+hd() {
+	echo "$1"
+    echo -n "$1" | tr -c '-' '-'
+	echo
+	echo
+}
+
+tl() {
+	echo
+	echo "$1"
+	echo
+}
+
+ghd() {
+	echo "$1"
+    echo -n "$1" | tr -c '=' '='
+	echo
+	echo
+}
+
+gtl() {
+	echo "$1"
+	echo
+}
+
+get_serial() {
+    #                                          master                   contact                    serial
+    dig @"$2" SOA "$1" $FLAGS | sed -n 's|.*SOA[[:blank:]]*[^[:blank:]]*[[:blank:]]*[^[:blank:]]*[[:blank:]]*\([^[:blank:]]*\).*|\1|p'
+}
+
+ghd "Domains check report"
+
+while [ -n "$1" ]; do
+	DOM="$1"
+	WARNINGS=0
+	ERRORS=0
+	hd "Checking domain $DOM"
+	MASTER="`dig SOA "$1" $FLAGS | sed -n 's|.*SOA[[:blank:]]*\([^[:blank:]]*\)\..*|\1|p'`"
+	if [ -n "$MASTER" ]; then
+		check "$MASTER is a master for $DOM"
+	else
+		err "No master found for $DOM"
+		continue
+	fi
+	SERIAL="`get_serial "$DOM" "$MASTER"`"
+	if [ -n "$SERIAL" ]; then
+		check "Domain $DOM has serial $SERIAL"
+	else
+		err "No serial found for $DOM on master"
+	fi
+	for ns in \
+		  `dig @"$MASTER" NS "$DOM" $FLAGS | sed -n 's|.*IN[[:blank:]]*NS[[:blank:]]*\([^[:blank:]]*\)\.$|\1|p'` \
+		  `dig @"$MASTER" NS "$DOM" $FLAGS | sed -n 's|.*IN[[:blank:]]*NS[[:blank:]]*\([^[:blank:]]*[^.]\)$|\1'".$DOM|p"`; do
+		TEST="`get_serial "$DOM" "$ns"`"
+		if [ "$TEST" = "$SERIAL" ]; then
+			check "$ns has same serial as master - $SERIAL"
+		else
+			warn "$ns has different serial then master ($TEST != $SERIAL)"
+		fi
+	done
+	REPORT="Everything is ok, no need to worry."
+	[ "$WARNINGS" -eq 0 ] || REPORT="Some minor issues found, might be worth looking into!"
+	[ "$ERRORS" -eq 0 ]   || REPORT="Serious issues found, those needs to be fixed!"
+	tl "Domain $DOM checked and found $ERRORS errors and $WARNINGS warnings. $REPORT"
+	shift
+done
+
+REPORT=""
+[ "$GL_WARNINGS" -eq 0 ] || REPORT="Some minor issues found in following domains: `echo $WAR_DOM` Might be worth looking into! "
+[ "$GL_ERRORS" -eq 0 ]   || REPORT="${REPORT}Serious issues found in following domains: `echo $ERR_DOM`. Those needs to be fixed!"
+tl "All domains checked and found $ERRORS errors and $WARNINGS warnings. $REPORT"
