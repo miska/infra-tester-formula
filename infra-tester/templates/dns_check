@@ -2,6 +2,8 @@
 FLAGS="+noall +answer"
 GL_ERRORS="0"
 GL_WARNINGS="0"
+DOMAINS="{{ " ".join(domains) }}"
+[ -z "$DOMAINS" ] || set $DOMAINS
 
 err() {
     echo "ERROR: $1"
