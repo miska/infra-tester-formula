@@ -9,14 +9,14 @@ err() {
     echo "ERROR: $1"
 	ERRORS="`expr $ERRORS + 1`"
 	GL_ERRORS="`expr $GL_ERRORS + 1`"
-	ERR_DOM="echo -n "$ERR_DOM\n$DOM"
+	ERR_DOM="`echo -e "$ERR_DOM\n$DOM" | sort -u`"
 }
 
 warn() {
     echo "WARNING: $1"
 	WARNINGS="`expr $WARNINGS + 1`"
 	GL_WARNINGS="`expr $GL_WARNINGS + 1`"
-	WAR_DOM="echo -n "$WAR_DOM\n$DOM"
+	WAR_DOM="`echo -e "$WAR_DOM\n$DOM" | sort -u`"
 }
 
 check() {
@@ -50,7 +50,7 @@ gtl() {
 
 get_serial() {
     #                                          master                   contact                    serial
-    dig @"$2" SOA "$1" $FLAGS | sed -n 's|.*SOA[[:blank:]]*[^[:blank:]]*[[:blank:]]*[^[:blank:]]*[[:blank:]]*\([^[:blank:]]*\).*|\1|p'
+    dig @"$2" SOA "$1" $FLAGS | sed -n 's|^[^;].*SOA[[:blank:]]*[^[:blank:]]*[[:blank:]]*[^[:blank:]]*[[:blank:]]*\([^[:blank:]]*\).*|\1|p'
 }
 
 ghd "Domains check report"
@@ -60,7 +60,7 @@ while [ -n "$1" ]; do
 	WARNINGS=0
 	ERRORS=0
 	hd "Checking domain $DOM"
-	MASTER="`dig SOA "$1" $FLAGS | sed -n 's|.*SOA[[:blank:]]*\([^[:blank:]]*\)\..*|\1|p'`"
+	MASTER="`dig SOA "$1" $FLAGS | sed -n 's|^[^;].*SOA[[:blank:]]*\([^[:blank:]]*\)\..*|\1|p'`"
 	if [ -n "$MASTER" ]; then
 		check "$MASTER is a master for $DOM"
 	else
@@ -71,11 +71,11 @@ while [ -n "$1" ]; do
 	if [ -n "$SERIAL" ]; then
 		check "Domain $DOM has serial $SERIAL"
 	else
-		err "No serial found for $DOM on master"
+		err "No serial found for $DOM on master $MASTER"
 	fi
 	for ns in \
-		  `dig @"$MASTER" NS "$DOM" $FLAGS | sed -n 's|.*IN[[:blank:]]*NS[[:blank:]]*\([^[:blank:]]*\)\.$|\1|p'` \
-		  `dig @"$MASTER" NS "$DOM" $FLAGS | sed -n 's|.*IN[[:blank:]]*NS[[:blank:]]*\([^[:blank:]]*[^.]\)$|\1'".$DOM|p"`; do
+		  `dig @"$MASTER" NS "$DOM" $FLAGS | sed -n 's|^[^;].*IN[[:blank:]]*NS[[:blank:]]*\([^[:blank:]]*\)\.$|\1|p'` \
+		  `dig @"$MASTER" NS "$DOM" $FLAGS | sed -n 's|^[^;].*IN[[:blank:]]*NS[[:blank:]]*\([^[:blank:]]*[^.]\)$|\1'".$DOM|p"`; do
 		TEST="`get_serial "$DOM" "$ns"`"
 		if [ "$TEST" = "$SERIAL" ]; then
 			check "$ns has same serial as master - $SERIAL"
