@@ -8,6 +8,8 @@ tester_root:
     - user: {{ user }}
     - dir_mode: 0755
     - makedirs: True
+    - require:
+      - tester_user
 
 tester_user:
   user.present:
@@ -32,7 +34,7 @@ tester_dns_packages:
     - pkgs:
       - bind-utils
 
-{% for name, cfg config in data['dns'].items() %}
+{% for name, cfg in data['dns'].items() %}
 {{ name }}_dns_script:
   file.managed:
     - name: {{ root }}/dns_{{ name }}/dns_check
@@ -42,7 +44,7 @@ tester_dns_packages:
     - makedirs: True
     - user: {{ user }}
     - mode: 755
-    - sources:
+    - source:
       - salt://infra-tester/templates/dns_check
     - require:
       - tester_user
@@ -50,8 +52,8 @@ tester_dns_packages:
 {{ name }}_dns_cron:
   cron.present:
     - user: {{ user }}
-    - name: '{{ root }}/dns_{{ name }}/dns_check > {{ cfg.get('report', '{{ root }}/dns_{{ name }}/report.txt') }}'
-    - minute: '*/{{ cfg.get('minutes', 10 }}'
+    - name: '{{ root }}/dns_{{ name }}/dns_check > {{ cfg.get('report', root + '/dns_' + name + '/report.txt') }}'
+    - minute: '*/{{ cfg.get('minutes', 10) }}'
     - identifier: {{ name }}_dns
     - require:
       - {{ name }}_dns_script
