@@ -1,32 +1,84 @@
 #!/bin/sh
-[ -n "$TEST_HOME" ] || TEST_HOME="$HOME"
+
+ERRORS="0"
+WARNINGS="0"
+
+err() {
+    echo "ERROR: $1"
+    ERRORS="`expr $ERRORS + 1`"
+}
+
+warn() {
+    echo "WARNING: $1"
+    WARNINGS="`expr $WARNINGS + 1`"
+}
+
+check() {
+    echo " * $1"
+}
+
+hd() {
+    echo "$1"
+    echo -n "$1" | tr -c '-' '-'
+    echo
+    echo
+}
+
+tl() {
+    echo
+    echo "$1"
+    echo
+}
+
+ghd() {
+    echo "$1"
+    echo -n "$1" | tr -c '=' '='
+    echo
+    echo
+}
+
+gtl() {
+    echo "$1"
+    echo
+}
+
+[ -n "$TEST_HOME" ] || TEST_HOME="`dirname "$0"`"
 cd "$TEST_HOME"
-echo -e "Subject: Testing e-mail\n\nSent@`date +%s | tee -a to_receive | tee last_test`@\n" | msmtp -C "$TEST_HOME"/msmtprc {{ middleman }}
+
+ghd "Results of sending test mails via {{ middleman }}"
+
+TS="`date +%s`"
+if echo -e "Subject: {{ subject }}\n\nSent@$TS@\n" | msmtp -C "$TEST_HOME"/msmtprc {{ middleman }}; then
+    echo "$TS" >> to_receive
+    echo "$TS" >  last_test
+else
+    err "Can't send mails"
+fi
 sleep 5
 mbsync -qq -c "$TEST_HOME"/mbsyncrc -a
 for ts in `cat to_receive`; do
-	fl="`grep -Rl "Sent@$ts@" "$TEST_HOME"/mailbox`"
-	if [ "$fl" ]; then
-		sed -i "/$ts/ d" to_receive
-		[ $ts -le "0`cat last_received 2> /dev/null`" ] || echo "$ts" > last_received
-		rm "$fl"
-	fi
+    fl="`grep -Rl "Sent@$ts@" "$TEST_HOME"/Mails`"
+    if [ "$fl" ]; then
+        sed -i "/$ts/ d" to_receive
+        [ $ts -le "0`cat last_received 2> /dev/null`" ] || echo "$ts" > last_received
+        rm "$fl"
+    fi
 done
-{
-echo "<html><head><title>Results of e-mail testing</title></head><body>"
-if [ "`cat to_receive | wc -l`" -gt 5 ]; then
-	echo "<h1>It is broken :-(</h1><p>I lost `cat to_receive | wc -l` mails</p>"
-elif [ "`expr \`date +%s\` - 0\`cat last_received 2> /dev/null\``" -gt 7200 ]; then
-	echo "<h1>It is broken :-(</h1><p>I haven't received a mail in last $(expr \( $(date +%s$) - 0$(cat last_received 2> /dev/null) \) / 3600) hours.</p>"
+
+
+if [ "`cat to_receive | wc -l`" -gt {{ mails_waiting_num }} ]; then
+    err "It is broken :-( I lost `cat to_receive | wc -l` mails"
+elif [ "`expr \`date +%s\` - 0\`cat last_received 2> /dev/null\``" -gt `expr {{ last_mail_hours }} \* 3660` ]; then
+    err "It is broken :-( I haven't received a mail in last $(expr \( $(date +%s$) - 0$(cat last_received 2> /dev/null) \) / 3600) hours."
 else
-	echo "<h1>It works!</h1><p>Testing e-mail received back!</p>"
-	if [ "`cat to_receive | wc -l`" -eq 0 ]; then
-		echo '<p>All test e-mails received sucessfully.</p>'
-	else
-		echo "<p>Waiting for `cat to_receive | wc -l` e-mails to return.</p>"
-	fi
+    hd "It works!"
+    check "Testing e-mail received back!"
+    if [ "`cat to_receive | wc -l`" -eq 0 ]; then
+        check 'All test e-mails received sucessfully.'
+    else
+        check "Waiting for `cat to_receive | wc -l` e-mails to return."
+    fi
 fi
-echo "<p>Last test message was sent at `LANG=C date -d @\`cat last_test\` -R`.</p>"
-echo "<p>Last test message was received at `LANG=C date -d @0\`cat last_received 2> /dev/null\` -R`.</p>"
-echo "</body></html>"
-} > "$1"
+
+gtl "Last test message was sent at `LANG=C date -d @\`cat last_test\` -R`.
+Last test message was received at `LANG=C date -d @0\`cat last_received 2> /dev/null\` -R`."
