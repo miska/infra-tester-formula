@@ -2,6 +2,9 @@
 FLAGS="+noall +answer"
 GL_ERRORS="0"
 GL_WARNINGS="0"
+RES_FILE="$1"
+TMP_FILE="`mktemp "$RES_FILE".XXXXX`"
+exec > "$TMP_FILE"
 DOMAINS="{{ " ".join(domains) }}"
 [ -z "$DOMAINS" ] || set $DOMAINS
 
@@ -94,3 +97,6 @@ REPORT=""
 [ "$GL_WARNINGS" -eq 0 ] || REPORT="Some minor issues found in following domains: `echo $WAR_DOM` Might be worth looking into! "
 [ "$GL_ERRORS" -eq 0 ]   || REPORT="${REPORT}Serious issues found in following domains: `echo $ERR_DOM`. Those needs to be fixed!"
 tl "All domains checked and found $ERRORS errors and $WARNINGS warnings. $REPORT"
+
+chmod {{ mode }} "$TMP_FILE"
+mv "$TMP_FILE" "$RES_FILE"

@@ -134,6 +134,7 @@ tester_dns_packages:
     - name: {{ root }}/dns_{{ name }}/dns_check
     - context:
         domains: {{ cfg['domains'] }}
+        mode: {{ cfg.get('report_mode', '0644') }}
     - template: jinja
     - makedirs: True
     - user: {{ user }}
@@ -147,7 +148,7 @@ tester_dns_packages:
 {{ name }}_dns_cron:
   cron.present:
     - user: {{ user }}
-    - name: '{{ root }}/dns_{{ name }}/dns_check > {{ cfg.get('report', root + '/dns_' + name + '/report.txt') }}'
+    - name: '{{ root }}/dns_{{ name }}/dns_check {{ cfg.get('report', root + '/dns_' + name + '/report.txt') }}'
     - minute: '*/{{ cfg.get('minutes', 10) }}'
     - identifier: {{ name }}_dns
     - require:
