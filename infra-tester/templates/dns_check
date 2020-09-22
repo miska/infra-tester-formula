@@ -96,6 +96,7 @@ while [ -n "$1" ]; do
 			TMEOUT=0
 			if [ -f "$DOM/$ns" ]; then
 				TMEOUT="$(expr $(date +%s) - $(cat "$DOM/$ns"))"
+				TMEOUT="$(expr $TMEOUT / 60)"
 			else
 				date +%s > "$DOM/$ns"
 			fi
