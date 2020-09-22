@@ -6,6 +6,10 @@ RES_FILE="$1"
 TMP_FILE="`mktemp "$RES_FILE".XXXXX`"
 exec > "$TMP_FILE"
 DOMAINS="{{ " ".join(domains) }}"
+
+[ -n "$TEST_HOME" ] || TEST_HOME="`dirname "$0"`"
+cd "$TEST_HOME"
+
 [ -z "$DOMAINS" ] || set $DOMAINS
 
 err() {
@@ -58,10 +62,15 @@ get_serial() {
 
 ghd "Domains check report"
 
+
 while [ -n "$1" ]; do
 	DOM="$1"
 	WARNINGS=0
 	ERRORS=0
+	SYNC_TIMEOUT="{{ timeout }}"
+	if [ "$2" = -s ] && [ -n "$3" ]; then
+		SYNC_TIMEOUT="$3"
+	fi
 	hd "Checking domain $DOM"
 	MASTER="`dig SOA "$1" $FLAGS | sed -n 's|^[^;].*SOA[[:blank:]]*\([^[:blank:]]*\)\..*|\1|p'`"
 	if [ -n "$MASTER" ]; then
@@ -81,9 +90,20 @@ while [ -n "$1" ]; do
 		  `dig @"$MASTER" NS "$DOM" $FLAGS | sed -n 's|^[^;].*IN[[:blank:]]*NS[[:blank:]]*\([^[:blank:]]*[^.]\)$|\1'".$DOM|p"`; do
 		TEST="`get_serial "$DOM" "$ns"`"
 		if [ "$TEST" = "$SERIAL" ]; then
+			rm -f $DOM/$ns
 			check "$ns has same serial as master - $SERIAL"
 		else
-			warn "$ns has different serial then master ($TEST != $SERIAL)"
+			TMEOUT=0
+			if [ -f "$DOM/$ns" ]; then
+				TMEOUT="$(expr $(date +%s) - $(cat "$DOM/$ns"))"
+			else
+				date +%s > "$DOM/$ns"
+			fi
+			if [ "$TMEOUT" - lt "$SYNC_TIMEOUT" ]; then
+				warn "$ns has different serial then master ($TEST != $SERIAL) for ${TMEOUT}/${SYNC_TIMEOUT}s"
+			else
+				err "$ns has different serial then master ($TEST != $SERIAL) for ${TMEOUT}s (limit was ${SYNC_TIMEOUT}s"
+			fi
 		fi
 	done
 	REPORT="Everything is ok, no need to worry."

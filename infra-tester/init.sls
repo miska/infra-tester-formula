@@ -134,6 +134,7 @@ tester_dns_packages:
     - name: {{ root }}/dns_{{ name }}/dns_check
     - context:
         domains: {{ cfg['domains'] }}
+        timeout: {{ cfg.get('timeout', 300) }}
         mode: {{ cfg.get('report_mode', '0644') }}
     - template: jinja
     - makedirs: True
