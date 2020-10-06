@@ -2,6 +2,9 @@
 
 ERRORS="0"
 WARNINGS="0"
+RES_FILE="$1"
+TMP_FILE="`mktemp "$RES_FILE".XXXXX`"
+exec > "$TMP_FILE"
 
 err() {
     echo "ERROR: $1"
@@ -82,3 +85,6 @@ fi
 
 gtl "Last test message was sent at `LANG=C date -d @\`cat last_test\` -R`.
 Last test message was received at `LANG=C date -d @0\`cat last_received 2> /dev/null\` -R`."
+
+chmod {{ mode }} "$TMP_FILE"
+mv "$TMP_FILE" "$RES_FILE"

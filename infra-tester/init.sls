@@ -34,6 +34,7 @@ tester_mail_packages:
         last_mail_hours: {{ cfg.get('last_mail_hours', 1) }}
         mails_waiting_num: {{ cfg.get('mails_waiting_num', 5) }}
         subject: {{ cfg.get('subject', 'Testing e-mail') }}
+        mode: {{ cfg.get('report_mode', '0644') }}
     - template: jinja
     - makedirs: True
     - user: {{ user }}
@@ -110,7 +111,7 @@ tester_mail_packages:
 {{ name }}_mail_cron:
   cron.present:
     - user: {{ user }}
-    - name: '{{ root }}/mail_{{ name }}/mail_check > {{ cfg.get('report', root + '/mail_' + name + '/report.txt') }}'
+    - name: '{{ root }}/mail_{{ name }}/mail_check {{ cfg.get('report', root + '/mail_' + name + '/report.txt') }}'
     - minute: '*/{{ cfg.get('minutes', 10) }}'
     - identifier: {{ name }}_mail
     - require:
